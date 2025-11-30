@@ -1,0 +1,8 @@
+node_modules/
+output/
+*.epub
+cover_*.jpg
+cover_*.png
+cover_*.jpeg
+.DS_Store
+

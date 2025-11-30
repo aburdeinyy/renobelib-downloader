@@ -1,0 +1,44 @@
+name: Download Book to EPUB
+
+on:
+  workflow_dispatch:
+    inputs:
+      book_url:
+        description: "Ссылка на книгу (например: https://ranobelib.me/ru/book/40218--the-devious-first-daughter)"
+        required: true
+        type: string
+      chapter_range:
+        description: "Диапазон глав (например: 1-150 или 1:1-1:5 или оставьте пустым для всех глав)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download book
+        env:
+          BOOK_URL: ${{ inputs.book_url }}
+          CHAPTER_RANGE: ${{ inputs.chapter_range }}
+        run: node downloader.js --non-interactive "$CHAPTER_RANGE"
+
+      - name: Upload EPUB file
+        uses: actions/upload-artifact@v3
+        with:
+          name: book-epub
+          path: output/*.epub
+          retention-days: 7
