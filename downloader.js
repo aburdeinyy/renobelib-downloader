@@ -33,9 +33,30 @@ function getRandomDelay() {
 }
 
 /**
+ * Проверка, запущен ли скрипт в CI окружении (GitHub Actions, GitLab CI и т.д.)
+ */
+function isCI() {
+  return (
+    process.env.CI === "true" ||
+    process.env.GITHUB_ACTIONS === "true" ||
+    process.env.GITLAB_CI === "true" ||
+    process.env.CIRCLECI === "true" ||
+    process.env.TRAVIS === "true"
+  );
+}
+
+/**
  * Отображение прелоадера во время паузы
  */
 async function showLoader(duration, message = "Ожидание...") {
+  // В CI окружении просто ждем без анимации
+  if (isCI()) {
+    console.log(message);
+    await delay(duration);
+    return;
+  }
+
+  // В обычном режиме показываем анимацию
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   const interval = 100; // Обновление каждые 100мс
   let currentFrame = 0;
