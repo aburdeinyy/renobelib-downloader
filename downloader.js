@@ -78,6 +78,29 @@ async function showLoader(duration, message = "Ожидание...") {
 }
 
 /**
+ * Очистка имени файла от недопустимых символов
+ */
+function sanitizeFilename(filename) {
+  if (!filename) return filename;
+
+  // Убираем недопустимые символы: " : < > | * ? \r \n
+  // Также убираем слеши и обратные слеши
+  let sanitized = filename
+    .replace(/["<>|*?:\\\/\r\n]/g, "") // Убираем недопустимые символы
+    .replace(/\s+/g, "-") // Заменяем пробелы на дефисы
+    .replace(/\.{2,}/g, ".") // Убираем множественные точки
+    .replace(/^\.+|\.+$/g, "") // Убираем точки в начале и конце
+    .trim();
+
+  // Если после очистки строка пустая, возвращаем дефолтное значение
+  if (!sanitized) {
+    return "book";
+  }
+
+  return sanitized;
+}
+
+/**
  * Очистка HTML контента для EPUB
  */
 function cleanHtmlContent(html) {
@@ -134,7 +157,8 @@ async function fetchCover(mangaId, mangaSlug) {
           fs.mkdirSync(CONFIG.outputDir, { recursive: true });
         }
 
-        const coverFilename = `cover_${mangaSlug || mangaId}.${extension}`;
+        const sanitizedSlug = sanitizeFilename(mangaSlug || mangaId);
+        const coverFilename = `cover_${sanitizedSlug}.${extension}`;
         const coverPath = path.join(CONFIG.outputDir, coverFilename);
 
         fs.writeFileSync(coverPath, Buffer.from(coverResponse.data));
@@ -308,10 +332,8 @@ async function downloadBook(
     cover: coverPath || undefined, // Добавляем обложку, если она есть
   };
 
-  const outputPath = path.join(
-    CONFIG.outputDir,
-    `${mangaSlug || mangaId}.epub`
-  );
+  const sanitizedSlug = sanitizeFilename(mangaSlug || mangaId);
+  const outputPath = path.join(CONFIG.outputDir, `${sanitizedSlug}.epub`);
 
   try {
     await new Promise((resolve, reject) => {
@@ -389,6 +411,9 @@ function parseBookUrl(url) {
 
     // Убираем возможные слеши в конце slug
     mangaSlug = mangaSlug.replace(/\/+$/, "");
+
+    // Очищаем slug от недопустимых символов для имени файла
+    mangaSlug = sanitizeFilename(mangaSlug);
 
     return { mangaId, mangaSlug };
   } catch (error) {
