@@ -323,6 +323,16 @@ async function downloadBook(
         })
         .catch(reject);
     });
+
+    // Удаляем обложку после успешного создания EPUB
+    if (coverPath && fs.existsSync(coverPath)) {
+      try {
+        fs.unlinkSync(coverPath);
+        console.log(`✓ Обложка удалена: ${coverPath}`);
+      } catch (deleteError) {
+        console.warn(`⚠ Не удалось удалить обложку: ${deleteError.message}`);
+      }
+    }
   } catch (error) {
     console.error("Ошибка при создании EPUB:", error.message);
     throw error;
@@ -334,26 +344,51 @@ async function downloadBook(
  */
 function parseBookUrl(url) {
   try {
-    // Убираем пробелы и проверяем формат
+    // Убираем пробелы
     url = url.trim();
 
+    // Если URL не начинается с протокола, добавляем https://
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
+    }
+
+    // Парсим URL с помощью встроенного URL API
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch (urlError) {
+      throw new Error("Неверный формат URL");
+    }
+
     // Проверяем, что это ссылка на ranobelib
-    if (!url.includes("ranobelib.me") && !url.includes("ranobelib.ru")) {
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (
+      !hostname.includes("ranobelib.me") &&
+      !hostname.includes("ranobelib.ru")
+    ) {
       throw new Error(
         "Неверный формат ссылки. Ожидается ссылка на ranobelib.me или ranobelib.ru"
       );
     }
 
-    // Извлекаем ID и slug из URL
-    // Формат: https://ranobelib.me/ru/book/40218--the-devious-first-daughter
-    const match = url.match(/book\/(\d+)(?:--(.+))?/);
+    // Извлекаем путь без query параметров
+    const pathname = parsedUrl.pathname;
+
+    // Извлекаем ID и slug из пути
+    // Формат: /ru/book/28369--the-rebirth-of-the-malicious-empress-of-military-lineage
+    // или: /book/28369--the-rebirth-of-the-malicious-empress-of-military-lineage
+    const match = pathname.match(/\/book\/(\d+)(?:--(.+))?/);
 
     if (!match) {
       throw new Error("Не удалось извлечь ID книги из ссылки");
     }
 
     const mangaId = match[1];
-    const mangaSlug = match[2] || `book-${mangaId}`;
+    // Если slug есть, берем его, иначе используем ID
+    let mangaSlug = match[2] || `book-${mangaId}`;
+
+    // Убираем возможные слеши в конце slug
+    mangaSlug = mangaSlug.replace(/\/+$/, "");
 
     return { mangaId, mangaSlug };
   } catch (error) {
@@ -376,13 +411,15 @@ function askQuestion(rl, question) {
  * Парсинг диапазона глав
  */
 function parseChapterRange(rangeStr) {
-  if (!rangeStr)
+  // Обрабатываем пустую строку или строку с пробелами
+  if (!rangeStr || !rangeStr.trim()) {
     return {
       startVolume: 1,
       startChapter: 1,
       endVolume: null,
       endChapter: null,
     };
+  }
 
   rangeStr = rangeStr.trim();
 
@@ -458,20 +495,29 @@ async function main() {
   const isNonInteractive =
     process.argv.includes("--non-interactive") || process.env.BOOK_URL;
   const bookUrlFromEnv = process.env.BOOK_URL;
-  const rangeFromEnv = process.argv[2] || process.env.CHAPTER_RANGE || "";
+  // Сначала проверяем переменную окружения, потом аргументы командной строки
+  // Игнорируем process.argv[2] если это флаг --non-interactive
+  const rangeFromEnv =
+    process.env.CHAPTER_RANGE ||
+    (process.argv[2] && !process.argv[2].startsWith("--")
+      ? process.argv[2]
+      : "") ||
+    "";
 
   let bookUrl, rangeStr;
 
   if (isNonInteractive && bookUrlFromEnv) {
     // Неинтерактивный режим
     bookUrl = bookUrlFromEnv;
-    rangeStr = rangeFromEnv;
+    rangeStr = rangeFromEnv.trim();
     console.log("═══════════════════════════════════════════════════════");
     console.log("  Скачивание книги с ranobelib.me в формате EPUB");
     console.log("═══════════════════════════════════════════════════════\n");
     console.log(`Ссылка на книгу: ${bookUrl}`);
     if (rangeStr) {
-      console.log(`Диапазон глав: ${rangeStr}`);
+      console.log(`Диапазон глав: "${rangeStr}"`);
+    } else {
+      console.log(`Диапазон глав: не указан (будут скачаны все главы)`);
     }
     console.log();
   } else {
@@ -533,6 +579,14 @@ async function main() {
   }
 
   const range = parseChapterRange(rangeStr);
+
+  // Дополнительное логирование для отладки в неинтерактивном режиме
+  if (isNonInteractive) {
+    console.log(`[DEBUG] rangeStr: "${rangeStr}"`);
+    console.log(
+      `[DEBUG] Парсинг диапазона: startVolume=${range.startVolume}, startChapter=${range.startChapter}, endVolume=${range.endVolume}, endChapter=${range.endChapter}`
+    );
+  }
 
   console.log(`\nПараметры скачивания:`);
   console.log(
