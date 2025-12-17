@@ -2,10 +2,10 @@
   "name": "renobelib-downloader",
   "version": "1.0.0",
   "description": "Скрипт для скачивания книг с ranobelib.me в формате EPUB",
-  "main": "downloader.js",
+  "main": "src/downloader.js",
   "type": "module",
   "scripts": {
-    "start": "node downloader.js"
+    "start": "node src/downloader.js"
   },
   "keywords": [
     "ranobelib",
