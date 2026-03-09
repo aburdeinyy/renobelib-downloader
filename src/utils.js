@@ -97,10 +97,85 @@ export function sanitizeFilename(filename) {
 }
 
 /**
+ * Преобразование ProseMirror JSON в HTML
+ */
+function convertProseMirrorToHtml(node) {
+  if (!node || typeof node !== "object") return "";
+
+  // Обработка текстовых узлов
+  if (node.type === "text") {
+    let text = node.text || "";
+
+    // Применяем форматирование из marks
+    if (node.marks && Array.isArray(node.marks)) {
+      for (const mark of node.marks) {
+        if (mark.type === "italic") {
+          text = `<em>${text}</em>`;
+        } else if (mark.type === "bold") {
+          text = `<strong>${text}</strong>`;
+        } else if (mark.type === "underline") {
+          text = `<u>${text}</u>`;
+        }
+      }
+    }
+
+    return text;
+  }
+
+  // Обработка заголовков
+  if (node.type === "heading") {
+    const level = node.attrs?.level || 2;
+    const tag = `h${level}`;
+    const content = node.content
+      ? node.content.map(convertProseMirrorToHtml).join("")
+      : "";
+    return `<${tag}>${content}</${tag}>`;
+  }
+
+  // Обработка параграфов
+  if (node.type === "paragraph") {
+    const content = node.content
+      ? node.content.map(convertProseMirrorToHtml).join("")
+      : "";
+    return `<p>${content}</p>`;
+  }
+
+  // Обработка горизонтальной линии
+  if (node.type === "horizontalRule") {
+    return "<hr>";
+  }
+
+  // Обработка корневого документа
+  if (node.type === "doc" && Array.isArray(node.content)) {
+    return node.content.map(convertProseMirrorToHtml).join("\n");
+  }
+
+  // Обработка вложенного контента
+  if (Array.isArray(node.content)) {
+    return node.content.map(convertProseMirrorToHtml).join("");
+  }
+
+  return "";
+}
+
+/**
  * Очистка HTML контента для EPUB
  */
 export function cleanHtmlContent(html) {
   if (!html) return "";
+
+  // Проверяем, является ли это ProseMirror JSON форматом
+  if (
+    typeof html === "object" &&
+    html !== null &&
+    html.type === "doc" &&
+    Array.isArray(html.content)
+  ) {
+    // Преобразуем ProseMirror JSON в HTML
+    const convertedHtml = convertProseMirrorToHtml(html);
+    // Заменяем типографские кавычки на обычные
+    return convertedHtml.replace(/«/g, '"').replace(/»/g, '"');
+  }
 
   // Некоторые главы могут приходить не строкой, а объектом/массивом
   let htmlStr;
@@ -146,6 +221,9 @@ export function cleanHtmlContent(html) {
   if (!cleaned.includes("<p>")) {
     cleaned = `<p>${cleaned.replace(/<[^>]+>/g, "").trim()}</p>`;
   }
+
+  // Заменяем типографские кавычки на обычные
+  cleaned = cleaned.replace(/«/g, '"').replace(/»/g, '"');
 
   return cleaned;
 }

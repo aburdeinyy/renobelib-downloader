@@ -39,12 +39,12 @@ npm install
 
 ```bash
 # Интерактивный режим
-node downloader.js
+node src/downloader.js
 
 # Неинтерактивный режим (через переменные окружения)
 BOOK_URL="https://ranobelib.me/ru/book/40218--the-devious-first-daughter" \
 CHAPTER_RANGE="1:1-1:5" \
-node downloader.js --non-interactive
+node src/downloader.js --non-interactive
 ```
 
 ## 📖 Формат диапазона глав

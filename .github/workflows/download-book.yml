@@ -34,7 +34,7 @@ jobs:
         env:
           BOOK_URL: ${{ inputs.book_url }}
           CHAPTER_RANGE: ${{ inputs.chapter_range }}
-        run: node downloader.js --non-interactive "$CHAPTER_RANGE"
+        run: node src/downloader.js --non-interactive "$CHAPTER_RANGE"
 
       - name: Upload EPUB file
         uses: actions/upload-artifact@v4
